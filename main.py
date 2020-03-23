@@ -1,28 +1,24 @@
 from __future__ import print_function
 import argparse
-from math import log10, ceil
+from math import ceil
 import random, shutil, json
-from os.path import join, exists, isfile, realpath, dirname
-from os import makedirs, remove, chdir, environ
+from os.path import join, exists, isfile
+from os import makedirs, remove, environ
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.autograd import Variable
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from torch.utils.data.dataset import Subset
-import torchvision.transforms as transforms
-from PIL import Image
 from datetime import datetime
-import torchvision.datasets as datasets
 import torchvision.models as models
 import h5py
 import faiss
 
 from tensorboardX import SummaryWriter
 import numpy as np
-import netvlad
+from models import netvlad
 
 parser = argparse.ArgumentParser(description='pytorch-NetVlad')
 parser.add_argument('--mode', type=str, default='train', help='Mode', choices=['train', 'test', 'cluster'])
