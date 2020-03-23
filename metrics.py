@@ -1,11 +1,22 @@
+"""
+Based on: https://github.com/linrongc/youtube-8m/blob/master/eval_util.py
+"""
+
 import numpy as np
 from sklearn.metrics import average_precision_score
+from sklearn.preprocessing import MultiLabelBinarizer
+
+import average_precision_calculator as ap_calculator
+
+
+def flatten(l):
+    """ Merges a list of lists into a single list. """
+    return [item for sublist in l for item in sublist]
 
 
 def calculate_gap(predictions, actuals, top_k=20):
     """Performs a local (numpy) calculation of the global average precision.
     Only the top_k predictions are taken for each of the videos.
-    Based on: https://github.com/linrongc/youtube-8m/blob/master/eval_util.py
     Args:
         predictions: Matrix containing the outputs of the model.
             Dimensions are 'batch' x 'num_classes'.
@@ -15,8 +26,10 @@ def calculate_gap(predictions, actuals, top_k=20):
     Returns:
         float: The global average precision.
     """
+    gap_calculator = ap_calculator.AveragePrecisionCalculator()
     sparse_predictions, sparse_labels, num_positives = top_k_by_class(predictions, actuals, top_k)
-    return average_precision_score(sparse_labels, sparse_predictions)
+    gap_calculator.accumulate(flatten(sparse_predictions), flatten(sparse_labels), sum(num_positives))
+    return gap_calculator.peek_ap_at_n()
 
 
 def top_k_by_class(predictions, labels, k=20):
