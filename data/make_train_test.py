@@ -85,7 +85,7 @@ def split(src_dir=default_src_dir, output_dir=default_src_dir, size=default_test
                 process = (
                     ffmpeg
                     .input(job['in'])
-                    .output(job['out'], pattern_type='glob', framerate=1)
+                    .output(job['out'], pattern_type='glob', r=1)
                     .run_async(pipe_stdout=True, pipe_stderr=True)
                 )
                 out, err = process.communicate()
