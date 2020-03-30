@@ -85,6 +85,9 @@ if __name__ == '__main__':
     center = np.load(os.path.join(opt['pca_dir'], 'mean.npy'))
     # neXtVLAD
     model = NeXtVLADModel(opt['num_classes'], max_frames=opt['max_frames'])
+    model.load_state_dict(torch.load(opt['ckpt_file']))
+    model.to(device)
+    model.eval()
 
     for video in opt['files']:
         probe = ffmpeg.probe(video)
@@ -116,8 +119,8 @@ if __name__ == '__main__':
         mask = np.zeros((opt['max_frames'],))
         mask[:len(fpca)] = 1
 
-        fc_feats = Variable(torch.from_numpy(padded).type(torch.FloatTensor))
-        mask = Variable(torch.from_numpy(mask).type(torch.FloatTensor))
+        fc_feats = Variable(torch.from_numpy(padded).type(torch.FloatTensor)).to(device)
+        mask = Variable(torch.from_numpy(mask).type(torch.FloatTensor)).to(device)
 
         out = model(fc_feats.unsqueeze(0), mask=mask.unsqueeze(0))
         print(f"{video}: {out.argmax().detach().cpu().numpy()}")

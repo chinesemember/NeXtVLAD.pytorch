@@ -35,7 +35,6 @@ def train(opt, model, optimizer, scheduler, train_loader):
 def eval(opt, model, test_loader):
     preds = []
     actuals = []
-    model.eval()
 
     for data in test_loader:
         fc_feats = data['fc_feats'].to(device)
@@ -90,15 +89,16 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     exp_lr_schedulr = optim.lr_scheduler.StepLR(optimizer, step_size=25)
 
-    model.train()
     model.to(device)
 
     for epoch in range(opt['num_epochs']):
+        model.train()
         train(opt, model, optimizer, exp_lr_schedulr, train_loader)
 
+        model.eval()
         gap_score = eval(opt, model, test_loader)
-        print(f"GAP(20): {gap_score:.3f}")
+        print(f"GAP({opt['gapk']}): {gap_score:.3f}")
 
-        model_path = os.path.join(opt['ckpt_dir'], f"model_e{epoch}_gap20-{gap_score:.3f}.pth")
+        model_path = os.path.join(opt['ckpt_dir'], f"model_e{epoch}_gap{opt['gapk']}-{gap_score:.3f}.pth")
         torch.save(model.state_dict(), model_path)
         print(f"Model saved to {model_path}")
