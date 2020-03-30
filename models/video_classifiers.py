@@ -39,8 +39,9 @@ class NeXtVLADModel(nn.Module):
         # B x Gr -> B x H0
         gates = self.fc2(gates)
         gates = torch.sigmoid(gates)
-        # B x H0
+        # B x H0 -> B x H0
         activation = torch.mul(activation, gates)
+        # B x H0 -> B x k
         out = self.logistic(activation)
         out = torch.sigmoid(out)
 
