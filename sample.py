@@ -1,20 +1,11 @@
 import argparse
 import os
 import torch
-import torch.nn.functional as F
-import torch.optim as optim
 import numpy as np
-import pretrainedmodels
-import pretrainedmodels.utils as utils
 import logging
 import ffmpeg
 
-from torch.utils.data import DataLoader
-from dataloader import VideoClassificationDataset
 from models.video_classifiers import NeXtVLADModel
-from metrics import calculate_gap
-from tqdm import tqdm
-from sklearn.decomposition import PCA
 from util import feature_pca
 from torch.autograd import Variable
 from PIL import Image

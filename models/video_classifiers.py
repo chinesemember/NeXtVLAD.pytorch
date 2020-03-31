@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.NeXtVLAD import NeXtVLAD
+from .NeXtVLAD import NeXtVLAD
 
 
 class NeXtVLADModel(nn.Module):
@@ -47,3 +47,56 @@ class NeXtVLADModel(nn.Module):
 
         return out
 
+
+class ConvNeXtVLADModel(nn.Module):
+    """
+    A full Conv + neXtVLAD video classifier pipeline
+    """
+
+    def __init__(self, nextvlad_model, eigenvecs, eigenvals, center, device, opt):
+        super(ConvNeXtVLADModel, self).__init__()
+        import pretrainedmodels
+        self.ftype = opt['type']
+        self.conv = pretrainedmodels.__dict__[opt['type']](num_classes=1000, pretrained='imagenet')
+        self.device = device
+        self.eigenvecs = torch.from_numpy(eigenvecs).type(torch.FloatTensor)
+        self.eigenvals = torch.from_numpy(eigenvals).type(torch.FloatTensor)
+        self.center = torch.from_numpy(center).type(torch.FloatTensor)
+        self.video_classifier = nextvlad_model
+
+    def _process_batch(self, batch):
+        output_features = self.conv.features(batch)
+        # output_features = output_features.data.cpu()
+
+        conv_size = output_features.shape[-1]
+
+        if self.ftype == 'nasnetalarge' or self.ftype == 'pnasnet5large':
+            relu = nn.ReLU()
+            rf = relu(output_features)
+            avg_pool = nn.AvgPool2d(conv_size, stride=1, padding=0)
+            out_feats = avg_pool(rf)
+        else:
+            avg_pool = nn.AvgPool2d(conv_size, stride=1, padding=0)
+            # B x H0 x 1 x 1
+            out_feats = avg_pool(output_features)
+        # B x H0
+        out_feats = out_feats.view(out_feats.size(0), -1).cpu()
+
+        # PCA (no whiten):
+        # B x H0 (-) B x H0
+        out_feats = out_feats - self.center
+        # B x H0 -> B x 1 x (H0/2)
+        out_feats = out_feats.unsqueeze(1).matmul(torch.t(self.eigenvecs))
+        # verification:
+        # (np) out_feats[0].detach().cpu().numpy().reshape(1, 2048).dot(self.eigenvecs.detach().cpu().numpy().T)
+        #   ==
+        # (torch) out_feats.unsqueeze(1).matmul(torch.t(self.eigenvecs))[0]
+
+        # B x (H0/2)
+        return out_feats.squeeze(1)
+
+    def conv_forward(self, frame_batch):
+        return self._process_batch(frame_batch)
+
+    def nextvlad_model_forward(self, vid_feats, mask):
+        return self.video_classifier.forward(vid_feats, mask)
