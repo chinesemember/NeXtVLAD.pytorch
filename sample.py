@@ -6,9 +6,8 @@ import logging
 import ffmpeg
 
 from models.video_classifiers import NeXtVLADModel
-from util import feature_pca
+from util import feature_pca, create_batches
 from torch.autograd import Variable
-from PIL import Image
 
 from data.process_features import init_model as init_convent
 from data.process_features import process_batches
@@ -19,32 +18,6 @@ logger.setLevel(logging.DEBUG)
 device = torch.device("cuda:0")
 
 available_features = ['nasnetalarge', 'resnet152', 'pnasnet5large', 'densenet121', 'senet154', 'polynet', 'vgg16']
-
-
-def create_batches(frames_to_do, tf_img_fn, batch_size=32):
-    n = len(frames_to_do)
-    if n < batch_size:
-        logger.warning("Sample size less than batch size: Cutting batch size.")
-        batch_size = n
-
-    logger.info("Generating {} batches...".format(n // batch_size))
-    batches = []
-    frames_to_do = np.array(frames_to_do)
-
-    for idx in range(0, n, batch_size):
-        frames_idx = list(range(idx, min(idx+batch_size, n)))
-        batch_frames = frames_to_do[frames_idx]
-
-        batch_tensor = torch.zeros((len(batch_frames),) + tuple(tf_img_fn.input_size))
-        for i, frame_ in enumerate(batch_frames):
-            input_frame = Image.fromarray(frame_).convert('RGB')
-            input_tensor = tf_img_fn(input_frame)  # 3x400x225 -> 3x299x299 size may differ
-            # input_tensor = input_tensor.unsqueeze(0)  # 3x299x299 -> 1x3x299x299
-            batch_tensor[i] = input_tensor
-
-        batch_ag = torch.autograd.Variable(batch_tensor, requires_grad=False)
-        batches.append(batch_ag)
-    return batches
 
 
 if __name__ == '__main__':

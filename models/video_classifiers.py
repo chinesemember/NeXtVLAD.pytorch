@@ -59,9 +59,9 @@ class ConvNeXtVLADModel(nn.Module):
         self.ftype = opt['type']
         self.conv = pretrainedmodels.__dict__[opt['type']](num_classes=1000, pretrained='imagenet')
         self.device = device
-        self.eigenvecs = torch.from_numpy(eigenvecs).type(torch.FloatTensor)
-        self.eigenvals = torch.from_numpy(eigenvals).type(torch.FloatTensor)
-        self.center = torch.from_numpy(center).type(torch.FloatTensor)
+        self.eigenvecs = torch.from_numpy(eigenvecs).type(torch.FloatTensor).to(device)
+        # self.eigenvals = torch.from_numpy(eigenvals).type(torch.FloatTensor)
+        self.center = torch.from_numpy(center).type(torch.FloatTensor).to(device)
         self.video_classifier = nextvlad_model
 
     def _process_batch(self, batch):
@@ -80,7 +80,7 @@ class ConvNeXtVLADModel(nn.Module):
             # B x H0 x 1 x 1
             out_feats = avg_pool(output_features)
         # B x H0
-        out_feats = out_feats.view(out_feats.size(0), -1).cpu()
+        out_feats = out_feats.view(out_feats.size(0), -1)
 
         # PCA (no whiten):
         # B x H0 (-) B x H0
