@@ -6,13 +6,14 @@ Perform batched feature extract using Cadene pretrainedmodels
 """
 import torch
 import pretrainedmodels
-import pretrainedmodels.utils as utils
 import torch.nn as nn
 import argparse
 import time
 import os
 import numpy as np
 import logging
+
+from util import TransformImage, create_batches
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -28,11 +29,10 @@ def init_model(gpu_ids, model_name):
     # could be fbresnet152 or inceptionresnetv2
     model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet')
     model.eval()
-    load_img = utils.LoadImage()
 
     # transformations depending on the model
     # rescale, center crop, normalize, and others (ex: ToBGR, ToRange255)
-    tf_img = utils.TransformImage(model)
+    tf_img = TransformImage(model)
 
     """
     TODO(WG): Would be nice to use something like DataParallel, but that only does forward pass on given module.
@@ -47,7 +47,7 @@ def init_model(gpu_ids, model_name):
     if torch.cuda.is_available():
         model = model.cuda(device=gpu_ids[0])
 
-    return load_img, tf_img, model
+    return tf_img, model
 
 
 def extract_features(args):
@@ -80,7 +80,7 @@ def extract_features(args):
         # np.random.shuffle(frames_dirs)
         work = len(frames_dirs) if not work else work
 
-        load_img, tf_img, model = init_model(args.gpu_list, args.type)
+        tf_img, model = init_model(args.gpu_list, args.type)
 
         work_done = 0
         while work_done != work:
@@ -115,7 +115,7 @@ def extract_features(args):
                 np.save(pf, [])
 
             try:
-                batches = create_batches(frames_to_do, load_img, tf_img, batch_size=args.batch_size)
+                batches = create_batches(frames_to_do, tf_img, logger=logger, batch_size=args.batch_size)
             except OSError as e:
                 logger.exception(e)
                 logger.warning("Corrupt image file. Skipping...")
@@ -149,7 +149,7 @@ def process_batches(batches, ftype, gpu_list, model):
             avg_pool = nn.AvgPool2d(conv_size, stride=1, padding=0)
             out_feats = avg_pool(rf)
         else:
-            avg_pool = nn.AvgPool2d(conv_size, stride=1, padding=0)
+            avg_pool = nn.AdaptiveAvgPool2d((1, 1))
             out_feats = avg_pool(output_features)
 
         out_feats = out_feats.view(out_feats.size(0), -1)
@@ -158,32 +158,6 @@ def process_batches(batches, ftype, gpu_list, model):
         done_batches.append(out_feats)
     feats = np.concatenate(done_batches, axis=0)
     return feats
-
-
-def create_batches(frames_to_do, load_img_fn, tf_img_fn, batch_size=32):
-    n = len(frames_to_do)
-    if n < batch_size:
-        logger.warning("Sample size less than batch size: Cutting batch size.")
-        batch_size = n
-
-    logger.info("Generating {} batches...".format(n // batch_size))
-    batches = []
-    frames_to_do = np.array(frames_to_do)
-
-    for idx in range(0, n, batch_size):
-        frames_idx = list(range(idx, min(idx+batch_size, n)))
-        batch_frames = frames_to_do[frames_idx]
-
-        batch_tensor = torch.zeros((len(batch_frames),) + tuple(tf_img_fn.input_size))
-        for i, frame_ in enumerate(batch_frames):
-            input_img = load_img_fn(frame_)
-            input_tensor = tf_img_fn(input_img)  # 3x400x225 -> 3x299x299 size may differ
-            # input_tensor = input_tensor.unsqueeze(0)  # 3x299x299 -> 1x3x299x299
-            batch_tensor[i] = input_tensor
-
-        batch_ag = torch.autograd.Variable(batch_tensor, requires_grad=False)
-        batches.append(batch_ag)
-    return batches
 
 
 def diff_feats(frames_dir, feats_dir):
