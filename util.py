@@ -55,7 +55,10 @@ def create_batches(frames_to_do, tf_img_fn, logger=None, batch_size=32):
 
         batch_tensor = None
         for i, frame_ in enumerate(batch_frames):
-            input_frame = Image.fromarray(frame_).convert('RGB')
+            if type(frame_) is np.ndarray:
+                input_frame = Image.fromarray(frame_).convert('RGB')
+            else: # filename
+                input_frame = Image.open(frame_).convert('RGB')
             input_tensor = tf_img_fn(input_frame)  # 3x400x225 -> 3x299x299 size may differ
             # input_tensor = input_tensor.unsqueeze(0)  # 3x299x299 -> 1x3x299x299
             if batch_tensor is None:
