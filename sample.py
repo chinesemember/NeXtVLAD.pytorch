@@ -9,8 +9,8 @@ from models.video_classifiers import NeXtVLADModel
 from util import feature_pca, create_batches
 from torch.autograd import Variable
 
-from data.process_features import init_model as init_convent
-from data.process_features import process_batches
+from util import init_model as init_convnet
+from util import process_batches
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     logger.info("Found {} GPUs, using {}.".format(torch.cuda.device_count(), len(opt['gpu_list'])))
 
     # Convnet
-    tf_img, convnet = init_convent(opt['gpu_list'], opt['type'])
+    tf_img, convnet = init_convnet(opt['gpu_list'], opt['type'])
     # PCA
     eigenvecs = np.load(os.path.join(opt['pca_dir'], 'eigenvecss.npy'))
     eigenvals = np.load(os.path.join(opt['pca_dir'], 'eigenvals.npy'))

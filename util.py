@@ -2,6 +2,9 @@ import os
 import torch
 import numpy as np
 import math
+import torch.nn as nn
+import pretrainedmodels
+
 from PIL import Image
 from pretrainedmodels.utils import ToRange255, ToSpaceBGR, transforms, munchify
 
@@ -118,3 +121,58 @@ class TransformImage(object):
     def __call__(self, img):
         tensor = self.tf(img)
         return tensor
+
+
+def init_model(gpu_ids, model_name):
+
+    # model_name = 'pnasnet5large'
+    # could be fbresnet152 or inceptionresnetv2
+    model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet')
+    model.eval()
+
+    # transformations depending on the model
+    # rescale, center crop, normalize, and others (ex: ToBGR, ToRange255)
+    tf_img = TransformImage(model)
+
+    """
+    TODO(WG): Would be nice to use something like DataParallel, but that only does forward pass on given module.
+    Need to stop before logits step. 
+    Should create wrapper for pretrainedmodels that does the MPI-like ops across GPUs on model.features modules:
+    1) replicated
+    2) scatter
+    3) parallel_apply
+    4) gather
+    Would have to know what layers are being used on each model. 
+    """
+    if torch.cuda.is_available():
+        model = model.cuda(device=gpu_ids[0])
+
+    return tf_img, model
+
+
+def process_batches(batches, ftype, gpu_list, model, logger=None):
+    done_batches = []
+    for i, batch in enumerate(batches):
+        if torch.cuda.is_available():
+            batch = batch.cuda(device=gpu_list[0])
+
+        output_features = model.features(batch)
+        output_features = output_features.data.cpu()
+
+        conv_size = output_features.shape[-1]
+
+        if ftype == 'nasnetalarge' or ftype == 'pnasnet5large':
+            relu = nn.ReLU()
+            rf = relu(output_features)
+            avg_pool = nn.AvgPool2d(conv_size, stride=1, padding=0)
+            out_feats = avg_pool(rf)
+        else:
+            avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+            out_feats = avg_pool(output_features)
+
+        out_feats = out_feats.view(out_feats.size(0), -1)
+        if logger: logger.info('Processed {}/{} batches.\r'.format(i + 1, len(batches)))
+
+        done_batches.append(out_feats)
+    feats = np.concatenate(done_batches, axis=0)
+    return feats
