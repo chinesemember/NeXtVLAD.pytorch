@@ -76,7 +76,7 @@ class ConvNeXtVLADModel(nn.Module):
             avg_pool = nn.AvgPool2d(conv_size, stride=1, padding=0)
             out_feats = avg_pool(rf)
         else:
-            avg_pool = nn.AvgPool2d(conv_size, stride=1, padding=0)
+            avg_pool = nn.AdaptiveAvgPool2d((1, 1))
             # B x H0 x 1 x 1
             out_feats = avg_pool(output_features)
         # B x H0
