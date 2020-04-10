@@ -163,7 +163,7 @@ def process_batches(batches, ftype, gpu_list, model):
 def diff_feats(frames_dir, feats_dir):
     feats = ['.'.join(i.split('.')[:-1]) for i in os.listdir(feats_dir)]
     feats = set(feats)
-    frames = set(os.listdir(frames_dir))
+    frames = set([fr for fr in os.listdir(frames_dir) if len(os.listdir(os.path.join(frames_dir, fr)))])
     needed_feats = frames - feats
     return needed_feats
 

@@ -42,7 +42,7 @@ if __name__ == '__main__':
     logger.info("Found {} GPUs, using {}.".format(torch.cuda.device_count(), len(opt['gpu_list'])))
 
     # Convnet
-    _, tf_img, convnet = init_convent(opt['gpu_list'], opt['type'])
+    tf_img, convnet = init_convent(opt['gpu_list'], opt['type'])
     # PCA
     eigenvecs = np.load(os.path.join(opt['pca_dir'], 'eigenvecss.npy'))
     eigenvals = np.load(os.path.join(opt['pca_dir'], 'eigenvals.npy'))
@@ -78,10 +78,11 @@ if __name__ == '__main__':
         for i, feat in enumerate(feats):
             fpca[i] = feature_pca(feat, center, eigenvals, eigenvecs)
 
+        n = min(opt['max_frames'], len(fpca))
         padded = np.zeros((opt['max_frames'], fpca.shape[1]))
-        padded[:len(fpca), :] = fpca
+        padded[:n, :] = fpca[:n, :]
         mask = np.zeros((opt['max_frames'],))
-        mask[:len(fpca)] = 1
+        mask[:n] = 1
 
         fc_feats = Variable(torch.from_numpy(padded).type(torch.FloatTensor)).to(device)
         mask = Variable(torch.from_numpy(mask).type(torch.FloatTensor)).to(device)

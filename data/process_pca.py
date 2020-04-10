@@ -23,6 +23,7 @@ if __name__ == '__main__':
             npo = np.load(npf_path)
             D.extend(npo)
 
+    print(f"Generating PCA vectors...")
     pca = PCA(n_components=1024)
     pca.fit(D)
     eigenvecs = pca.components_

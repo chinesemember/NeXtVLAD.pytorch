@@ -162,10 +162,11 @@ def load_and_subsample_feat(fc_feat_path, max_frames, n_frame_steps=1):
     #     0, fc_feat.shape[0] - 1, n_frame_steps)).astype(np.int32)
     try:
         fc_feat = np.load(fc_feat_path)
+        n = min(max_frames, len(fc_feat))
         padded = np.zeros((max_frames, fc_feat.shape[1]))
-        padded[:len(fc_feat), :] = fc_feat
+        padded[:n, :] = fc_feat[:n, :]
         mask = np.zeros((max_frames,))
-        mask[:len(fc_feat)] = 1
+        mask[:n] = 1
     except Exception as e:
         print("Bad feature file in dataset: {}. Purge, re-process, and try again.".format(fc_feat_path))
         raise e
